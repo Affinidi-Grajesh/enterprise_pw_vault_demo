@@ -13,6 +13,18 @@ path = "src/bin/service/main.rs"
 name = "client"
 path = "src/bin/client/main.rs"
 
+[[bin]]
+name = "didcomm-bridge"
+path = "src/bin/mcp_server/bridge_service.rs"
+
+[[bin]]
+name = "mcp-server"
+path = "src/bin/mcp_server/http_client.rs"
+
+[[bin]]
+name = "bridge-test-client"
+path = "src/bin/mcp_server/test_client.rs"
+
 [dependencies]
 affinidi-tdk = "0.2"
 
@@ -29,5 +41,17 @@ tracing-subscriber = { version = "0.3", features = [
   "json",
   "valuable",
 ] }
-tokio = { version = "1.47", features = [] }
+tokio = { version = "1.47", features = ["full"] }
 uuid = { version = "1.18", features = ["v4", "fast-rng"] }
+
+# MCP Server dependencies
+async-trait = "0.1"
+rmcp = { version = "0.5", features = ["server", "client", "transport-async-rw"] }
+futures = "0.3"
+pin-project-lite = "0.2"
+
+# HTTP dependencies for bridge
+axum = "0.7"
+reqwest = { version = "0.12", features = ["json"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace"] }

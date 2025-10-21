@@ -28,9 +28,13 @@ A password vault with **MCP architecture** - separating MCP protocol from DIDCom
 │   MCP Server    │ ──── Lightweight process, speaks standard MCP
 │   (this repo)   │      Exposes tools: get_password, list_keys
 └────────┬────────┘
-         │ HTTP/REST (localhost)
-         │ Simple HTTP calls - BUT passwords in plaintext!
-         │ ⚠️  This is the security problem we're solving next.
+         │ HTTP/REST (localhost) ⚠️ CURRENT DEMO - NOT PRODUCTION READY
+         │
+         │ ❌ Security Issue: Passwords sent in plaintext on localhost
+         │ ✅ Solution: See security-hardening doc for options:
+         │    • Option 1: In-Process MCP (zero network)
+         │    • Option 2: MCP/DIDComm Transport (E2E encrypted)
+         │    • Option 3: HTTPS + mTLS (traditional security)
          ↓
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                         🔐 DIDComm Security Layer                            │
@@ -90,10 +94,17 @@ A password vault with **MCP architecture** - separating MCP protocol from DIDCom
 
 From an AI agent perspective:
 1. **Standard MCP**: Your agent uses normal MCP - no DIDComm knowledge needed
-2. **Local HTTP Problem**: MCP Server → Bridge uses HTTP (passwords in plaintext on localhost)
-3. **DIDComm Solution**: Bridge → Service uses DIDComm (encrypted, decentralized)
+2. **⚠️ Current Demo Limitation**: MCP Server → Bridge uses HTTP (passwords in plaintext on localhost)
+3. **DIDComm Backend**: Bridge → Service uses DIDComm (encrypted, decentralized)
 4. **Mediator Network**: Each component can use multiple mediators for resilience
 5. **Zero Trust**: Only the Password Service can decrypt passwords - mediators are untrusted routers
+
+**🔒 Production Security**:
+This demo shows the architecture separation, but the HTTP connection is **not production-ready**.
+For production deployments, see [security-hardening.md](docs/security/security-hardening.md) which provides **3 secure alternatives**:
+- **Option 1**: Eliminate network entirely (in-process MCP)
+- **Option 2**: Replace HTTP with DIDComm E2E encryption
+- **Option 3**: Secure HTTP with mTLS certificates
 
 **Benefits**:
 - ✅ **Standard MCP** - Works with Claude, Cline, any MCP client
@@ -235,11 +246,13 @@ curl -X POST http://127.0.0.1:8080/bridge \
 
 - ✅ **Architecture**: Clean MCP/DIDComm separation
 - ✅ **Persistent Bridge DID**: Trusted, verifiable identity
-- ✅ **End-to-End Encryption**: All passwords via DIDComm
+- ✅ **End-to-End Encryption**: All passwords via DIDComm (Bridge → Service)
 - ✅ **Decentralized**: No central authority
 - ✅ **AI-Agent Ready**: Claude, MCP Inspector, custom agents
 - ✅ **Scalable**: Multiple agents → one bridge
-- ✅ **Production Ready**: Centralized security management
+- ⚠️ **Demo Status**: Current HTTP connection needs hardening for production
+
+**🔒 For Production**: Implement one of the [security hardening options](docs/security/security-hardening.md) to eliminate plaintext password transmission
 
 ---
 

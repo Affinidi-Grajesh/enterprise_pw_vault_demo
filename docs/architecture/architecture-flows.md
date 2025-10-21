@@ -83,7 +83,7 @@ Properties:
 
 
 
-### Flow 2: AI Agent Integration (Production)
+### Flow 2: AI Agent Integration
 **Use Case:** Claude Desktop, MCP Inspector, custom AI agents
 
 ```

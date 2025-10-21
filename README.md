@@ -1,6 +1,6 @@
 # Enterprise Password Vault Demo
 
-A production-ready password vault with **bifurcated MCP architecture** - separating MCP protocol from DIDComm security layer for scalability, security, and AI agent integration.
+A password vault with **MCP architecture** - separating MCP protocol from DIDComm security layer for scalability, security, and AI agent integration.
 
 ## 🎯 What Can I Do With This?
 
@@ -12,7 +12,7 @@ A production-ready password vault with **bifurcated MCP architecture** - separat
 
 ## �️ Architecture
 
-**Bifurcated Design**: Clean separation between MCP protocol and DIDComm security
+**Design**: Clean separation between MCP protocol and DIDComm security
 
 ```
 ┌─────────────┐   stdio    ┌─────────────┐   HTTP     ┌──────────────┐   DIDComm  ┌──────────────┐
@@ -28,7 +28,7 @@ A production-ready password vault with **bifurcated MCP architecture** - separat
 - ✅ **Scalable** - Multiple agents → one bridge
 - ✅ **Secure** - Centralized credential management
 
-📖 **Full Details**: [BIFURCATED_ARCHITECTURE.md](BIFURCATED_ARCHITECTURE.md)
+📖 **Full Details**: [architecture-flows.md](docs/architecture/architecture-flows.md)
 
 ## Components
 
@@ -155,34 +155,9 @@ curl -X POST http://127.0.0.1:8080/bridge \
 
 ---
 
-## Project Structure
-
-```
-enterprise_pw_vault_demo/
-├── README.md                              # 👈 You are here
-├── BIFURCATED_ARCHITECTURE.md             # Complete architecture guide
-├── BIFURCATED_QUICK_START.md              # Quick start guide
-├── MCP_OPTIONS_GUIDE.md                   # All MCP options explained
-├── TROUBLESHOOTING_MCP.md                 # Common issues & solutions
-│
-├── src/
-│   ├── lib.rs                             # Shared code
-│   └── bin/
-│       ├── service/                       # Password vault service
-│       ├── client/                        # CLI client
-│       └── mcp_server/                    # MCP architecture
-│           ├── bridge_service.rs          # DIDComm bridge (persistent)
-│           ├── http_client.rs             # MCP server (spawned)
-│           └── test_client.rs             # Test client
-│
-└── bridge_config.json                     # Auto-generated bridge config
-```
-
----
-
 ## Key Features
 
-- ✅ **Bifurcated Architecture**: Clean MCP/DIDComm separation
+- ✅ **Architecture**: Clean MCP/DIDComm separation
 - ✅ **Persistent Bridge DID**: Trusted, verifiable identity
 - ✅ **End-to-End Encryption**: All passwords via DIDComm
 - ✅ **Decentralized**: No central authority
@@ -195,18 +170,21 @@ enterprise_pw_vault_demo/
 ## Documentation
 
 ### Architecture
-- 📖 [Bifurcated Architecture Guide](BIFURCATED_ARCHITECTURE.md) - Complete technical details
-- 📖 [Quick Start Guide](BIFURCATED_QUICK_START.md) - Get running fast
-- 📖 [MCP Options Guide](MCP_OPTIONS_GUIDE.md) - Choose the right approach
+- 📖 [Architecture Flows](docs/architecture/architecture-flows.md) - Component interactions and data flows
+- 📖 [MCP/DIDComm Architecture](docs/architecture/mcp-didcomm-architecture.md) - Visual architecture guide
 
-### Troubleshooting
-- 🔧 [Troubleshooting Guide](TROUBLESHOOTING_MCP.md) - Common issues and solutions
+### Security
+- 🔒 [Security Hardening](docs/security/security-hardening.md) - Complete security analysis
+- 🔒 [Option 1: In-Process MCP Server](docs/options/option1-InProcess.md) - Maximum security
+- 🔒 [Option 2: MCP over DIDComm Transport](docs/options/option2-McpDidcomm.md) - Recommended approach
+- 🔒 [Option 3: HTTPS + mTLS](docs/options/option3-HttpsMtls.md) - Traditional security
+- 🔒 [Options Comparison](docs/options/optionsComparison.md) - Decision guide
 
 ---
 
 ## What's New
 
-### Bifurcated Architecture (Current)
+### Architecture (Current)
 - ✅ **Separated concerns**: MCP protocol vs DIDComm security
 - ✅ **Persistent bridge DID**: Saved and reused across restarts
 - ✅ **Lightweight MCP servers**: No DIDComm overhead
@@ -223,16 +201,6 @@ This separation enables better security, monitoring, and scalability.
 
 ---
 
-## Contributing
-
-Contributions welcome! Areas of interest:
-- Additional MCP tools (store, delete passwords)
-- Authentication layer for bridge
-- Metrics and monitoring
-- Load balancing support
-
----
-
 ## License
 
 MIT License - See LICENSE file for details
@@ -241,8 +209,9 @@ MIT License - See LICENSE file for details
 
 ## Support
 
-- 📖 [Full Architecture Guide](BIFURCATED_ARCHITECTURE.md)
-- 🔧 [Troubleshooting](TROUBLESHOOTING_MCP.md)
+- 📖 [Architecture Flows](docs/architecture/architecture-flows.md)
+- 📖 [MCP/DIDComm Architecture](docs/architecture/mcp-didcomm-architecture.md)
+- 🔒 [Security Options](docs/options/optionsComparison.md)
 - 💬 Open an issue for questions
 
 **Built with**:

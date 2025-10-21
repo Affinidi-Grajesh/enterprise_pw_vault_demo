@@ -1,6 +1,11 @@
 # Enterprise Password Vault Demo
 
-A password vault with **MCP architecture** - separating MCP protocol from DIDComm security layer for scalability, security, and AI agent integration.
+This prototype enables **AI agents** to securely retrieve passwords using standard **MCP protocol**, while decoupling transport and encryption via **DIDComm** for scalable, and decentralised credential access.
+
+This demonstration showcases how autonomous agents (non-human identities) can securely access enterprise services using DIDComm for encrypted, decentralised communication with MCP as one integration path among many. By meeting agentic platforms where they are, it reduces the cost and complexity of adopting DIDComm in Agent-to-Human workflows without requiring deep protocol changes.
+
+Autonomous agents can securely access enterprise services using MCP for agent-side simplicity and DIDComm for dynamic, end-to-end encrypted communication. DIDComm enables mutual authentication, decentralised identity resolution, and payload-level encryption establishing digital trust across boundaries. The architecture pattern avoids static client registration and user-in-the-flow dependencies enabling dynamic, auditable, and zero-trust Agent-to-Enterprise access.
+It offers a credible starting point for exploring scalable, trust-minimized architectures built on agent identity, digital trust, and adaptive interoperability across heterogeneous systems
 
 ## 🎯 What Can I Do With This?
 

@@ -10,25 +10,101 @@ A password vault with **MCP architecture** - separating MCP protocol from DIDCom
 | **Integrate with AI agents** | MCP Server + Bridge | See [Quick Start](#quick-start) |
 | **Test the architecture** | Test Client | `cargo run --bin bridge-test-client -- list-tools` |
 
-## �️ Architecture
+## 🏗️ Architecture
 
-**Design**: Clean separation between MCP protocol and DIDComm security
+### For AI Agent Developers
+
+**If you're familiar with MCP (Model Context Protocol)**, this is how it works:
 
 ```
-┌─────────────┐   stdio    ┌─────────────┐   HTTP     ┌──────────────┐   DIDComm  ┌──────────────┐
-│  AI Agent   │ ─────────> │ MCP Server  │ ─────────> │   DIDComm    │ ─────────> │  Password    │
-│  (Claude)   │  JSON-RPC  │ (stateless) │   REST     │   Bridge     │  Encrypted │  Service     │
-│             │ <───────── │             │ <─────────  │ (persistent) │ <─────────  │              │
-└─────────────┘            └─────────────┘            └──────────────┘            └──────────────┘
+┌──────────────────┐
+│   Your AI Agent  │ ──── You're here! Your agent needs secure password access
+│   (Claude, etc)  │
+└────────┬─────────┘
+         │ stdio (MCP JSON-RPC)
+         │ Standard MCP protocol - nothing new to learn!
+         ↓
+┌─────────────────┐
+│   MCP Server    │ ──── Lightweight process, speaks standard MCP
+│   (this repo)   │      Exposes tools: get_password, list_keys
+└────────┬────────┘
+         │ HTTP/REST (localhost)
+         │ Simple HTTP calls - BUT passwords in plaintext!
+         │ ⚠️  This is the security problem we're solving next.
+         ↓
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         🔐 DIDComm Security Layer                            │
+│                                                                              │
+│  ┌──────────────┐                                          ┌──────────────┐  │
+│  │   Bridge     │                                          │  Password    │  │
+│  │   (Relay)    │                                          │  Service     │  │
+│  │              │                                          │  (Vault)     │  │
+│  │ DID: did:A   │                                          │ DID: did:B   │  │
+│  └──────┬───────┘                                          └──────┬───────┘  │
+│         │                                                         │          │
+│         │ DIDComm Messages                         DIDComm Messages          │
+│         │ (E2E Encrypted)                          (E2E Encrypted)           │
+│         ↓                                                         ↓          │
+│  ┌──────────────┐                                      ┌──────────────┐      │
+│  │  Mediator 1  │                                      │  Mediator 2  │      │
+│  │ (Cloud/P2P)  │ ◄──────────────────────────────────► │ (Cloud/P2P)  │      │
+│  └──────────────┘      DIDComm Message Routing         └──────────────┘      │
+│       Bridge's         (E2E Encrypted)                     Service's         │
+│       mediator(s)                                          mediator(s)       │
+│                                                                              │
+│  How it works:                                                               │
+│  • Bridge registers with Mediator 1 (or multiple mediators for redundancy)   │
+│  • Service registers with Mediator 2 (or multiple mediators)                 │
+│  • Mediators can be the same server or different servers                     │
+│  • Messages flow: Bridge → Mediator 1 → Mediator 2 → Service                 │
+│  • ALL messages are end-to-end encrypted (mediators can't read them)         │
+│  • Each component can use multiple mediators for high availability           │
+│  • Default mediator: did:web:mediator-nlb.storm.ws:mediator:v1:.well-known   │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
+### Key Concepts for AI Agent Developers
+
+**What is DIDComm?**
+- Think of it like **encrypted email between services**
+- Each service has a DID (Decentralized Identifier) - like an email address
+- Messages are **end-to-end encrypted** - mediator can't read them
+- Works through firewalls and NATs
+
+**What is a Mediator?**
+- Like an **email server** or **message router**
+- Routes encrypted messages between DIDs
+- **Cannot decrypt messages** - it's just a postman delivering sealed envelopes
+- Each component (Bridge, Service) can register with **multiple mediators** for redundancy
+- Components can share the same mediator or use different ones
+- Default: `did:web:mediator-nlb.storm.ws:mediator:v1:.well-known`
+- Can be self-hosted, use cloud services, or mix both
+
+**Mediator Usage in This Architecture**:
+1. **Bridge's Mediators**: Bridge registers with one or more mediators (e.g., Mediator 1)
+2. **Service's Mediators**: Password Service registers with one or more mediators (e.g., Mediator 2)
+3. **Can Use Same Mediator**: Both components can use the same mediator server, or different ones
+4. **Message Flow**: Bridge → Mediator 1 → Mediator 2 → Service (all encrypted end-to-end)
+5. **High Availability**: Each component can register with multiple mediators for redundancy
+
+**Why This Architecture?**
+
+From an AI agent perspective:
+1. **Standard MCP**: Your agent uses normal MCP - no DIDComm knowledge needed
+2. **Local HTTP Problem**: MCP Server → Bridge uses HTTP (passwords in plaintext on localhost)
+3. **DIDComm Solution**: Bridge → Service uses DIDComm (encrypted, decentralized)
+4. **Mediator Network**: Each component can use multiple mediators for resilience
+5. **Zero Trust**: Only the Password Service can decrypt passwords - mediators are untrusted routers
 
 **Benefits**:
-- ✅ **Persistent Bridge DID** - Trusted, verifiable identity
-- ✅ **Lightweight MCP Servers** - No DIDComm overhead
-- ✅ **Scalable** - Multiple agents → one bridge
-- ✅ **Secure** - Centralized credential management
+- ✅ **Standard MCP** - Works with Claude, Cline, any MCP client
+- ✅ **Secure Backend** - DIDComm encryption for sensitive data
+- ✅ **Scalable** - Multiple agents → one bridge → one vault
+- ✅ **Decentralized** - No central authority, works through firewalls
+- ✅ **High Availability** - Multiple mediators per component, automatic failover
+- ✅ **Flexible Deployment** - Use shared or separate mediators per component
 
 📖 **Full Details**: [architecture-flows.md](docs/architecture/architecture-flows.md)
+🔒 **Security Improvements**: See [security-hardening.md](docs/security/security-hardening.md) for fixing the HTTP issue
 
 ## Components
 
@@ -176,7 +252,7 @@ curl -X POST http://127.0.0.1:8080/bridge \
 ### Security
 - 🔒 [Security Hardening](docs/security/security-hardening.md) - Complete security analysis
 - 🔒 [Option 1: In-Process MCP Server](docs/options/option1-InProcess.md) - Maximum security
-- 🔒 [Option 2: MCP over DIDComm Transport](docs/options/option2-McpDidcomm.md) - Recommended approach
+- 🔒 [Option 2: MCP over DIDComm Transport](docs/options/option2-McpDidcomm.md) - New approach ()
 - 🔒 [Option 3: HTTPS + mTLS](docs/options/option3-HttpsMtls.md) - Traditional security
 - 🔒 [Options Comparison](docs/options/optionsComparison.md) - Decision guide
 

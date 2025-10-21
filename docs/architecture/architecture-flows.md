@@ -10,14 +10,14 @@ The system consists of **5 binaries** organized into 3 architectural layers:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           CLIENT LAYER                                   │
+│                           CLIENT LAYER                                  │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                  │
-│  │   CLI Client │  │ AI Agents    │  │ Test Client  │                  │
-│  │   (client)   │  │ (Claude, etc)│  │(bridge-test) │                  │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘                  │
-│         │                  │                  │                          │
-└─────────┼──────────────────┼──────────────────┼──────────────────────────┘
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                   │
+│  │   CLI Client │  │ AI Agents    │  │ Test Client  │                   │
+│  │   (client)   │  │ (Claude, etc)│  │(bridge-test) │                   │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘                   │
+│         │                  │                  │                         │
+└─────────┼──────────────────┼──────────────────┼─────────────────────────┘
           │                  │                  │
           │                  │                  │ spawns & stdio
           │                  │ stdio/JSON-RPC   │
@@ -53,8 +53,8 @@ The system consists of **5 binaries** organized into 3 architectural layers:
 │                 │   Service    │                                       │
 │                 │  (service)   │                                       │
 │                 └──────────────┘                                       │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 
@@ -65,20 +65,21 @@ The system consists of **5 binaries** organized into 3 architectural layers:
 **Use Case:** Command-line password management
 
 ```
-┌──────────┐         DIDComm          ┌──────────┐
-│   CLI    │ ─────────────────────────>│ Password │
-│  Client  │  Encrypted Messages       │ Service  │
-│          │ <─────────────────────────│          │
-└──────────┘                           └──────────┘
+┌──────────┐         DIDComm          ┌──────────┐         DIDComm           ┌──────────┐
+│   CLI    │ ────────────────────────>│ Mediator │──────────────────────────>│ Password │
+│  Client  │  Encrypted Messages      │ (Cloud)  │  Encrypted Messages       │ Service  │
+│          │ <────────────────────────│          │<──────────────────────────│          │
+└──────────┘                          └──────────┘                           └──────────┘
 
 Command:
   cargo run --bin client -- -s <DID> get-password --key myapp
 
 Properties:
-  ✅ Direct connection
+  ✅ Routes through mediator(s)
   ✅ Ephemeral DID (created per run)
   ✅ No MCP overhead
   ✅ Fastest for CLI use
+  ✅ Client & Service can use same or different mediators
 ```
 
 
@@ -87,11 +88,13 @@ Properties:
 **Use Case:** Claude Desktop, MCP Inspector, custom AI agents
 
 ```
-┌──────────┐   stdio     ┌──────────┐   HTTP    ┌──────────┐   DIDComm  ┌──────────┐
-│ AI Agent │ JSON-RPC    │   MCP    │  REST     │ DIDComm  │ Encrypted  │ Password │
-│ (Claude) │ ──────────> │  Server  │ ────────> │  Bridge  │ ─────────> │ Service  │
-│          │ <────────── │          │ <──────── │          │ <───────── │          │
-└──────────┘  responses  └──────────┘  JSON     └──────────┘  messages  └──────────┘
+┌──────────┐   stdio     ┌──────────┐   HTTP    ┌──────────┐   DIDComm  ┌──────────┐   DIDComm  ┌──────────┐
+│ AI Agent │ JSON-RPC    │   MCP    │  REST     │ DIDComm  │ Encrypted  │ Mediator │ Encrypted  │ Password │
+│ (Claude) │ ──────────> │  Server  │ ────────> │  Bridge  │ ─────────> │ (Cloud)  │ ─────────> │ Service  │
+│          │ <────────── │          │ <──────── │          │ <───────── │          │ <───────── │          │
+└──────────┘  responses  └──────────┘  JSON     └──────────┘  messages  └──────────┘  messages  └──────────┘
+
+Note: Bridge and Service each register with mediator(s). Can be same or different mediators.
 
 Setup:
   Terminal 1: cargo run --bin service
@@ -112,6 +115,8 @@ Properties:
   ✅ MCP server is lightweight (HTTP client only)
   ✅ Bridge has persistent DID
   ✅ Scalable (multiple agents → one bridge)
+  ✅ Bridge & Service use mediator(s) for DIDComm routing
+  ✅ Mediators cannot decrypt messages (E2E encrypted)
 ```
 
 
@@ -120,13 +125,15 @@ Properties:
 **Use Case:** Verify the complete MCP architecture works
 
 ```
-┌──────────┐   spawns    ┌──────────┐   HTTP    ┌──────────┐   DIDComm  ┌──────────┐
-│  Test    │ subprocess  │   MCP    │  REST     │ DIDComm  │ Encrypted  │ Password │
-│  Client  │ ──────────> │  Server  │ ────────> │  Bridge  │ ─────────> │ Service  │
-│          │   stdio     │          │           │          │            │          │
-│          │ JSON-RPC ─> │          │           │          │            │          │
-│          │ <────────── │          │ <──────── │          │ <───────── │          │
-└──────────┘  responses  └──────────┘  JSON     └──────────┘  messages  └──────────┘
+┌──────────┐   spawns    ┌──────────┐   HTTP    ┌──────────┐   DIDComm  ┌──────────┐   DIDComm  ┌──────────┐
+│  Test    │ subprocess  │   MCP    │  REST     │ DIDComm  │ Encrypted  │ Mediator │ Encrypted  │ Password │
+│  Client  │ ──────────> │  Server  │ ────────> │  Bridge  │ ─────────> │ (Cloud)  │ ─────────> │ Service  │
+│          │   stdio     │          │           │          │            │          │            │          │
+│          │ JSON-RPC ─> │          │           │          │            │          │            │          │
+│          │ <────────── │          │ <──────── │          │ <───────── │          │ <───────── │          │
+└──────────┘  responses  └──────────┘  JSON     └──────────┘  messages  └──────────┘  messages  └──────────┘
+
+Note: Bridge and Service each register with mediator(s). Can be same or different mediators.
 
 Commands:
   Terminal 1: cargo run --bin service
@@ -136,7 +143,7 @@ Commands:
 Properties:
   ✅ Test client spawns MCP server
   ✅ Full integration test
-  ✅ Validates entire chain
+  ✅ Validates entire chain including mediator routing
   ✅ Good for debugging
 ```
 
@@ -151,8 +158,9 @@ Properties:
 **Role:** Backend vault that stores passwords
 
 **Communication:**
-- Receives: DIDComm encrypted messages
-- Sends: DIDComm encrypted responses
+- Receives: DIDComm encrypted messages (via mediator)
+- Sends: DIDComm encrypted responses (via mediator)
+- Registers with: Mediator for message routing
 
 **Properties:**
 - ✅ Persistent DID (saved on first run)
@@ -181,6 +189,12 @@ cargo run --bin service
 }
 ```
 
+**Mediator Configuration:**
+- Service registers with mediator specified in `mediator_did`
+- Mediator routes messages to/from Service's DID
+- Multiple mediators can be configured for redundancy
+```
+
 **Note:** Passwords must be added to `config.json` before starting the service. The service will create this file on first run via setup wizard.
 
 
@@ -192,8 +206,9 @@ cargo run --bin service
 **Role:** Direct command-line password management
 
 **Communication:**
-- Sends: DIDComm encrypted requests
-- Receives: DIDComm encrypted responses
+- Sends: DIDComm encrypted requests (via mediator)
+- Receives: DIDComm encrypted responses (via mediator)
+- Registers with: Mediator for message routing
 
 **Properties:**
 - ✅ Ephemeral DID (new each run)
@@ -224,9 +239,10 @@ cargo run --bin client -- -s <SERVICE_DID> --password-key myapp
 
 **Communication:**
 - Receives: HTTP POST requests (from MCP servers)
-- Sends: DIDComm encrypted messages (to Password Service)
-- Receives: DIDComm encrypted responses
+- Sends: DIDComm encrypted messages (via mediator to Password Service)
+- Receives: DIDComm encrypted responses (via mediator from Password Service)
 - Sends: HTTP JSON responses (to MCP servers)
+- Registers with: Mediator for message routing
 
 **Properties:**
 - ✅ **Persistent DID** (saved to `bridge_config.json`)
@@ -259,9 +275,16 @@ curl http://127.0.0.1:8080/health
 {
   "our_did": "did:peer:2.Ez6LS...",      // Persistent bridge DID
   "did_secrets": [...],                   // Private keys
-  "service_did": "did:peer:2.Ez6LS..."   // Password service DID
+  "service_did": "did:peer:2.Ez6LS...",  // Password service DID
+  "mediator_did": "did:web:mediator-nlb.storm.ws:mediator:v1:.well-known" // Mediator
 }
 ```
+
+**Mediator Configuration:**
+- Bridge registers with mediator specified in `mediator_did`
+- Bridge and Service can use same or different mediators
+- Mediator routes DIDComm messages between Bridge and Service
+- All messages are end-to-end encrypted (mediator cannot read)
 
 
 
@@ -370,6 +393,9 @@ AI Agent (configured with MCP server)
 - Bridge must be configured with correct service DID
 - MCP server trusts bridge URL
 - All DIDComm messages are encrypted end-to-end
+- Mediators route messages but cannot decrypt them
+- Each component can register with multiple mediators for redundancy
+- Bridge and Service can share mediators or use different ones
 
 
 

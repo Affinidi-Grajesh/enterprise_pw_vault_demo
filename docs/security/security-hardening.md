@@ -11,8 +11,10 @@ This document outlines security improvements for the MCP architecture, focusing 
 - DID-based authentication (no certificates needed)
 - Standard MCP protocol compatibility
 - Agent owns its DID and keys
-- Works through firewalls via mediator
+- Works through firewalls via mediators
+- Mediators route messages but cannot decrypt (E2E encrypted)
 - Decentralized and verifiable
+- High availability with multiple mediators
 
 **Alternative Solutions:**
 1. **In-Process MCP Server** - Maximum security, zero network exposure
@@ -26,11 +28,13 @@ This document outlines security improvements for the MCP architecture, focusing 
 
 ### Architecture
 ```
-┌──────────────┐   stdio      ┌──────────────┐   HTTP       ┌──────────────┐   DIDComm    ┌──────────────┐
-│  AI Agent    │  JSON-RPC    │  MCP Server  │  plaintext   │   DIDComm    │  encrypted   │  Password    │
-│  (Claude)    │ ──────────── │ (separate    │ ──────────── │   Bridge     │ ──────────── │  Service     │
-│              │              │  process)    │   network    │ (persistent) │              │              │
-└──────────────┘              └──────────────┘              └──────────────┘              └──────────────┘
+┌──────────────┐   stdio      ┌──────────────┐   HTTP       ┌──────────────┐   DIDComm    ┌──────────────┐   DIDComm    ┌──────────────┐
+│  AI Agent    │  JSON-RPC    │  MCP Server  │  plaintext   │   DIDComm    │  encrypted   │  Mediator    │  encrypted   │  Password    │
+│  (Claude)    │ ──────────── │ (separate    │ ─────────────│   Bridge     │ ─────────────│  (Cloud)     │ ─────────────│  Service     │
+│              │              │  process)    │   network    │ (persistent) │              │              │              │              │
+└──────────────┘              └──────────────┘              └──────────────┘              └──────────────┘              └──────────────┘
+
+Note: Bridge & Service register with mediator(s) for DIDComm message routing
 ```
 
 ### Current Vulnerabilities
@@ -74,13 +78,14 @@ We have designed three comprehensive security options to address the vulnerabili
 #### [Option 1: In-Process MCP Server](../options/option1-InProcess.md)
 **Best for: Maximum security with zero network exposure**
 
-- ✅ **No network exposure** - MCP server runs in agent's process
+- ✅ **No local network exposure** - MCP server runs in agent's process
 - ✅ **OS-level protection** - Memory isolation via process boundaries
 - ✅ **No HTTP** - Direct function calls
 - ✅ **Agent owns DID** - Full control over identity and keys
 - ✅ **Reduced attack surface** - Eliminate bridge as separate service
 - ✅ **Simpler deployment** - One process, one configuration
-- ✅ **Better performance** - No network latency
+- ✅ **Better performance** - No network latency for MCP calls
+- ✅ **Firewall friendly** - DIDComm to backend via mediators
 
 **[→ View Full Implementation Guide](../options/option1-InProcess.md)**
 
@@ -93,8 +98,10 @@ We have designed three comprehensive security options to address the vulnerabili
 - ✅ **DID-based authentication** - No certificates or API keys needed
 - ✅ **Standard MCP** - Full MCP protocol compatibility
 - ✅ **Decentralized** - No central authority required
-- ✅ **Firewall friendly** - Works through mediator
+- ✅ **Firewall friendly** - Works through mediators
+- ✅ **High availability** - Multiple mediators for redundancy
 - ✅ **Verifiable** - All messages cryptographically signed
+- ✅ **Mediator routing** - Messages routed but never decrypted by mediators
 
 **[→ View Full Implementation Guide](../options/option2-McpDidcomm.md)**
 
@@ -103,11 +110,12 @@ We have designed three comprehensive security options to address the vulnerabili
 #### [Option 3: HTTPS + mTLS](../options/option3-HttpsMtls.md)
 **Best for: Traditional enterprise security with certificate-based authentication**
 
-- ✅ **TLS encryption** - Standard HTTPS protects transport layer
+- ✅ **TLS encryption** - Standard HTTPS protects transport layer (local only)
 - ✅ **mTLS authentication** - Both client and server verify identities
 - ✅ **Agent owns DID** - MCP server manages agent's identity
 - ✅ **Familiar ops model** - Traditional certificate management
 - ✅ **Auditable** - Standard HTTPS logging
+- ✅ **DIDComm backend** - Bridge to Service uses mediators
 
 **[→ View Full Implementation Guide](../options/option3-HttpsMtls.md)**
 
@@ -149,19 +157,20 @@ For detailed key management implementation, see individual option guides.
 
 | Aspect | Current | With TLS | MCP/DIDComm | In-Process |
 |--------|---------|----------|-------------|------------|
-| **Transport Security** | ❌ Plaintext HTTP | ✅ HTTPS + mTLS | ✅ E2E DIDComm | ✅ N/A (no network) |
+| **Transport Security** | ❌ Plaintext HTTP | ✅ HTTPS + mTLS (local) | ✅ E2E DIDComm | ✅ N/A (no local network) |
 | **Password Exposure** | ❌ Network plaintext | ✅ TLS encrypted | ✅ DIDComm encrypted | ✅ In-memory only |
 | **DID Ownership** | ❌ Bridge owns | ✅ Agent owns | ✅ Agent owns | ✅ Agent owns |
 | **Attack Surface** | ❌ Large (HTTP + Bridge) | ⚠️ Medium (HTTPS + Bridge) | ✅ Small (DIDComm only) | ✅ Smallest (process only) |
-| **Network Exposure** | ❌ Yes | ⚠️ Yes (encrypted) | ⚠️ Yes (E2E encrypted) | ✅ No |
+| **Network Exposure** | ❌ Yes (plaintext) | ⚠️ Yes (TLS local) | ⚠️ Yes (E2E encrypted) | ✅ Backend only (via mediators) |
 | **Process Boundary** | ❌ Crosses | ⚠️ Crosses | ⚠️ Crosses | ✅ Same process |
 | **Key Management** | ❌ Bridge controls | ✅ Agent controls | ✅ Agent controls | ✅ Agent controls |
 | **Authentication** | ❌ None | ✅ mTLS certs | ✅ DID-based crypto | ✅ N/A |
-| **Decentralized** | ❌ No | ❌ No | ✅ Yes | ✅ Yes (if desired) |
+| **Decentralized** | ❌ No | ⚠️ Partial (backend) | ✅ Yes | ✅ Yes (if desired) |
 | **Standard MCP** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Performance** | ⚠️ Network latency | ⚠️ TLS overhead | ⚠️ DIDComm overhead | ✅ Function call |
-| **Deployment** | ⚠️ Two services | ⚠️ Two services + certs | ⚠️ Two services | ✅ One process |
-| **Firewall Friendly** | ⚠️ Requires ports | ⚠️ Requires ports | ✅ Via mediator | ✅ N/A |
+| **Performance** | ⚠️ Network latency | ⚠️ TLS overhead (local) | ⚠️ Via mediators | ✅ Function call |
+| **Deployment** | ⚠️ 2 services + mediator | ⚠️ 2 services + certs + mediator | ⚠️ 2 services + mediators | ✅ 1 process + mediator |
+| **Firewall Friendly** | ⚠️ Requires ports | ⚠️ Requires ports (local) | ✅ Via mediators | ✅ Via mediators |
+| **Mediator Usage** | ✅ Backend only | ✅ Backend only | ✅ All DIDComm | ✅ Backend only |
 | **Verifiable** | ❌ No | ⚠️ Cert-based | ✅ Crypto signatures | ✅ N/A |
 
 ---

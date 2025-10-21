@@ -13,17 +13,24 @@ Extend MCP to support DIDComm as a native transport layer (like stdio, SSE, HTTP
 ## 🏗️ Architecture
 
 ```
-┌──────────────┐   stdio      ┌──────────────┐   DIDComm    ┌──────────────┐   DIDComm    ┌──────────────┐
-│  AI Agent    │  JSON-RPC    │  MCP Client  │  MCP-over-   │   MCP Tool   │  Business    │  Password    │
-│  (Claude)    │ ──────────── │ (has agent   │ ─DIDComm──── │   Server     │ ─DIDComm──── │  Service     │
-│              │              │  DID)        │  encrypted   │ (has DID)    │  encrypted   │              │
-└──────────────┘              └──────────────┘              └──────────────┘              └──────────────┘
-                                      │                              │
-                                      │      MCP Protocol            │
-                                      │   (initialize, tools/list,   │
-                                      │    tools/call, etc.)         │
-                                      │   Wrapped in DIDComm         │
-                                      └──────────────────────────────┘
+┌──────────────┐   stdio      ┌──────────────┐   DIDComm    ┌──────────────┐   DIDComm    ┌──────────────┐   DIDComm    ┌──────────────┐
+│  AI Agent    │  JSON-RPC    │  MCP Client  │  MCP-over-   │  Mediator 1  │  Routes E2E  │  Mediator 2  │  Business    │  Password    │
+│  (Claude)    │ ──────────── │ (has agent   │ ─DIDComm──── │  (Client's)  │ ─encrypted─── │  (Server's)  │ ─DIDComm──── │  Service     │
+│              │              │  DID)        │  encrypted   │              │   messages   │              │  encrypted   │              │
+└──────────────┘              └──────────────┘              └──────────────┘              └──────────────┘              └──────────────┘
+                                      │                              │                              │                              │
+                                      │                              │      MCP Protocol            │                              │
+                                      │                              │   (initialize, tools/list,   │                              │
+                                      │                              │    tools/call, etc.)         │                              │
+                                      │                              │   Wrapped in DIDComm         │                              │
+                                      └──────────────────────────────┴──────────────────────────────┴──────────────────────────────┘
+
+Note:
+• MCP Client registers with Mediator 1
+• MCP Tool Server registers with Mediator 2
+• Password Service also registers with mediator(s)
+• Mediators can be same or different servers
+• All messages remain end-to-end encrypted through mediator routing
 ```
 
 ---
@@ -36,10 +43,11 @@ Extend MCP to support DIDComm as a native transport layer (like stdio, SSE, HTTP
 | **DID-based authentication** | No certificates or API keys needed |
 | **Standard MCP** | Full MCP protocol compatibility |
 | **Decentralized** | No central authority required |
-| **Firewall friendly** | Works through mediator |
+| **Firewall friendly** | Works through mediators, no port forwarding |
 | **Agent owns DID** | Full control over identity |
 | **Backward compatible** | Existing MCP tools work unchanged |
 | **Verifiable** | All messages cryptographically signed |
+| **High availability** | Multiple mediators for redundancy and failover |
 
 ---
 
@@ -51,7 +59,9 @@ Application Layer:  MCP JSON-RPC
                     ↓
 Encryption Layer:   DIDComm (E2E encrypted)
                     ↓
-Routing Layer:      Mediator (cannot decrypt)
+Routing Layer:      Mediator 1 → Mediator 2
+                    (Routes E2E encrypted messages)
+                    (Cannot decrypt messages)
                     ↓
 Transport Layer:    HTTPS/WebSocket
 ```
@@ -62,6 +72,8 @@ Transport Layer:    HTTPS/WebSocket
 - **Authentication**: Sender verified via DID signature
 - **Non-repudiation**: All messages signed
 - **Privacy**: DIDs don't reveal IP addresses
+- **Mediator routing**: Messages routed through mediators (cannot decrypt)
+- **High availability**: Multiple mediators per component for redundancy
 
 ---
 
@@ -72,10 +84,11 @@ Transport Layer:    HTTPS/WebSocket
 | Encryption | ❌ Plaintext | ✅ E2E DIDComm |
 | Authentication | ❌ None | ✅ DID-based |
 | Identity | ⚠️ IP/port | ✅ Decentralized DID |
-| Firewall | ❌ Needs open ports | ✅ Via mediator |
+| Firewall | ❌ Needs open ports | ✅ Via mediators |
 | Verifiable | ❌ No | ✅ Crypto signed |
 | Privacy | ❌ IP exposed | ✅ DID only |
 | Standard MCP | ✅ Yes | ✅ Yes |
+| High Availability | ⚠️ Single endpoint | ✅ Multiple mediators |
 
 ---
 
@@ -89,10 +102,11 @@ Transport Layer:    HTTPS/WebSocket
 - ✅ Agent owns DID
 
 ### Cons
-- ⚠️ Network latency (~200-400ms)
-- ⚠️ Requires mediator service
+- ⚠️ Network latency (~200-400ms via mediators)
+- ⚠️ Requires mediator service(s) for routing
 - ⚠️ More complex than in-process
 - ⚠️ DIDComm overhead
+- ⚠️ Each component needs mediator registration
 
 ---
 

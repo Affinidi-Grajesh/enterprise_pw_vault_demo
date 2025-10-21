@@ -13,24 +13,32 @@ Embed the MCP server directly into the AI agent process, eliminating all network
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────┐   DIDComm    ┌──────────────┐
-│  AI Agent Process                       │  encrypted   │  Password    │
-│  ┌──────────────┐   ┌──────────────┐   │ ──────────── │  Service     │
-│  │  AI Agent    │──>│  MCP Server  │   │              │              │
-│  │  (Claude)    │   │  (in-process │───┼──────────────>              │
-│  │              │   │   library)   │   │              │              │
-│  └──────────────┘   └──────────────┘   │              │              │
-│         │                  │            │              │              │
-│         │                  ↓            │              │              │
-│         │         ┌──────────────┐      │              │              │
-│         └────────>│  Agent DID   │      │              │              │
-│                   │  Key Manager │      │              │              │
-│                   └──────────────┘      │              │              │
-└─────────────────────────────────────────┘              └──────────────┘
+┌─────────────────────────────────────────┐   DIDComm    ┌──────────────┐   DIDComm   ┌──────────────┐
+│  AI Agent Process                       │  encrypted   │  Mediator    │  encrypted  │  Password    │
+│  ┌──────────────┐   ┌──────────────┐    │ ──────────── │  (Cloud)     │ ─────────── │  Service     │
+│  │  AI Agent    │──>│  MCP Server  │    │              │              │             │              │
+│  │  (Claude)    │   │  (in-process │─── ┼─────────────>│  Routes E2E  │────────────>│              │
+│  │              │   │   library)   │    │              │  encrypted   │             │              │
+│  └──────────────┘   └──────────────┘    │              │  messages    │             │              │
+│         │                  │            │              │              │             │              │
+│         │                  ↓            │              │  (Cannot     │             │              │
+│         │         ┌──────────────┐      │              │   decrypt)   │             │              │
+│         └────────>│  Agent DID   │      │              │              │             │              │
+│                   │  Key Manager │      │              └──────────────┘             │              │
+│                   │  Registers   │      │                                           │              │
+│                   │  w/ Mediator │      │                                           │              │
+│                   └──────────────┘      │                                           └──────────────┘
+└─────────────────────────────────────────┘
 
          Single Process Boundary
-         No Network Calls
+         No Network Calls (except DIDComm via mediator)
          OS-Level Memory Protection
+
+Notes:
+• Agent registers with mediator for message routing
+• Service also registers with mediator (can be same or different)
+• All messages end-to-end encrypted (mediator cannot decrypt)
+• No plaintext data ever leaves agent process
 ```
 
 ---
@@ -39,13 +47,14 @@ Embed the MCP server directly into the AI agent process, eliminating all network
 
 | Benefit | Description |
 |---------|-------------|
-| **Zero network exposure** | MCP server runs inside agent's process, no network calls |
+| **Zero network exposure** | MCP server runs inside agent's process, no local network calls |
 | **OS-level protection** | Memory isolation via process boundaries |
 | **No HTTP** | Direct function calls only |
 | **Agent owns DID** | Full control over identity and keys |
 | **Reduced attack surface** | Eliminates bridge as separate service |
 | **Simplest deployment** | One process, one configuration |
-| **Best performance** | No network latency, just function calls |
+| **Best performance** | No network latency for MCP calls, DIDComm via mediator |
+| **Firewall friendly** | Works through mediators, no port forwarding needed |
 
 ---
 
@@ -60,6 +69,7 @@ Agent Process Memory Layout:
 │  ┌───────────────────────────────┐ │
 │  │  MCP Server (in-process)      │ │
 │  │  - DIDComm client             │ │
+│  │  - Registers with mediator    │ │
 │  │  - No HTTP                    │ │
 │  │  - Direct function calls      │ │
 │  └───────────────────────────────┘ │
@@ -69,12 +79,21 @@ Agent Process Memory Layout:
 │  │  - Private keys               │ │
 │  │  - Encrypted at rest          │ │
 │  │  - OS keychain integration    │ │
+│  │  - Mediator DID configured    │ │
 │  └───────────────────────────────┘ │
 │                                     │
 └─────────────────────────────────────┘
         ↕ OS Process Boundary
    No data leaves process except
    encrypted DIDComm messages
+   (routed through mediator)
+
+External Communication:
+┌──────────────┐           ┌──────────────┐
+│  Mediator    │ ◄────────►│  Password    │
+│  (Cloud)     │  Routes   │  Service     │
+│              │  E2E enc  │              │
+└──────────────┘           └──────────────┘
 ```
 
 ---

@@ -13,15 +13,19 @@ Secure the existing bridge architecture using HTTPS with mutual TLS (mTLS). This
 ## 🏗️ Architecture
 
 ```
-┌──────────────┐   stdio      ┌──────────────┐   HTTPS+mTLS ┌──────────────┐   DIDComm    ┌──────────────┐
-│  AI Agent    │  JSON-RPC    │  MCP Server  │  encrypted   │   DIDComm    │  encrypted   │  Password    │
-│  (Claude)    │ ──────────── │ (has agent   │ ──────────── │   Bridge     │ ──────────── │  Service     │
-│              │              │  DID)        │   network    │ (relay only) │              │              │
-└──────────────┘              └──────────────┘              └──────────────┘              └──────────────┘
-                                      │                              │
-                                      │     TLS Certificate          │
-                                      │     Mutual Authentication    │
-                                      └──────────────────────────────┘
+┌──────────────┐   stdio      ┌──────────────┐   HTTPS+mTLS ┌──────────────┐   DIDComm    ┌──────────────┐   DIDComm    ┌──────────────┐
+│  AI Agent    │  JSON-RPC    │  MCP Server  │  encrypted   │   DIDComm    │  encrypted   │  Mediator    │  encrypted   │  Password    │
+│  (Claude)    │ ─────────────│ (has agent   │ ─────────────│   Bridge     │ ─────────────│  (Cloud)     │ ─────────────│  Service     │
+│              │              │  DID)        │   network    │ (relay only) │              │              │              │              │
+└──────────────┘              └──────────────┘              └──────────────┘              └──────────────┘              └──────────────┘
+                                      │                              │                              │                              │
+                                      │     TLS Certificate          │                              │                              │
+                                      │     Mutual Authentication    │                              │                              │
+                                      └──────────────────────────────┘                              │                              │
+                                                                                                    │                              │
+                                                                                  Bridge & Service register with mediator(s)
+                                                                                  Mediator routes E2E encrypted DIDComm messages
+                                                                                  Can be same or different mediators
 ```
 
 ---
@@ -30,12 +34,13 @@ Secure the existing bridge architecture using HTTPS with mutual TLS (mTLS). This
 
 | Benefit | Description |
 |---------|-------------|
-| **TLS encryption** | Standard HTTPS protects transport layer |
+| **TLS encryption** | Standard HTTPS protects transport layer (MCP ↔ Bridge) |
 | **mTLS authentication** | Both client and server verify identities |
 | **Agent owns DID** | MCP server manages agent's identity |
 | **Bridge as relay** | Bridge doesn't decrypt messages |
 | **Familiar ops model** | Traditional certificate management |
 | **Auditable** | Standard HTTPS logging |
+| **DIDComm backend** | Bridge ↔ Service uses mediators for routing |
 
 ---
 
@@ -45,32 +50,37 @@ Secure the existing bridge architecture using HTTPS with mutual TLS (mTLS). This
 ```
 Application Layer:  MCP JSON-RPC
                     ↓
-DIDComm Layer:      End-to-end encryption
+DIDComm Layer:      End-to-end encryption (via mediator routing)
                     ↓
-TLS Layer:          Transport encryption + authentication
+TLS Layer:          Transport encryption + authentication (MCP ↔ Bridge only)
                     ↓
 TCP Layer:          Network transport
+
+Note: Bridge ↔ Service uses DIDComm via mediators (no TLS, just DIDComm)
 ```
 
 ### Key Features
-- **TLS 1.3**: Modern encryption standards
+- **TLS 1.3**: Modern encryption standards (MCP Server ↔ Bridge)
 - **Certificate validation**: Both directions
 - **Forward secrecy**: Ephemeral keys per session
 - **Bridge isolation**: Cannot see plaintext
 - **Standard monitoring**: HTTPS tooling
+- **DIDComm via mediators**: Bridge ↔ Service communication
+- **Dual security**: TLS for local + DIDComm for backend
 
 ---
 
 ## 📊 Comparison
 
 | Aspect | HTTP (Current) | HTTPS + mTLS |
-|--------|----------------|--------------|
-| Transport encryption | ❌ Plaintext | ✅ TLS 1.3 |
+|--------|----------------|--------------||
+| Transport encryption | ❌ Plaintext (local) | ✅ TLS 1.3 (local) |
 | Authentication | ❌ None | ✅ Certificate-based |
 | DID ownership | ❌ Bridge | ✅ Agent |
 | Bridge role | ⚠️ Decrypts | ✅ Relay only |
+| Backend communication | ✅ DIDComm via mediators | ✅ DIDComm via mediators |
 | Ops complexity | ✅ Simple | ⚠️ Certificate mgmt |
-| Performance | ✅ Fast | ⚠️ TLS overhead |
+| Performance | ✅ Fast | ⚠️ TLS overhead (local) |
 
 ---
 
@@ -85,10 +95,11 @@ TCP Layer:          Network transport
 
 ### Cons
 - ⚠️ Certificate management overhead
-- ⚠️ Still has network exposure
-- ⚠️ TLS performance overhead
-- ⚠️ Two processes to manage
+- ⚠️ Still has local network exposure (MCP ↔ Bridge)
+- ⚠️ TLS performance overhead (local communication)
+- ⚠️ Two processes to manage (three with mediator)
 - ⚠️ Certificate rotation complexity
+- ⚠️ Backend still requires mediator service
 
 ---
 

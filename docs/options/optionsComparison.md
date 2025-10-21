@@ -8,16 +8,17 @@ Quick comparison of all three security hardening options for the MCP architectur
 
 | Feature | Option 1: In-Process | Option 2: MCP/DIDComm | Option 3: HTTPS + mTLS |
 |---------|---------------------|----------------------|------------------------|
-| **Network Exposure** | ✅ None | ⚠️ Yes (E2E encrypted) | ⚠️ Yes (TLS encrypted) |
+| **Network Exposure** | ✅ None (local) | ⚠️ Yes (E2E encrypted) | ⚠️ Yes (TLS encrypted) |
 | **Process Boundary** | ✅ Single process | ⚠️ Multiple processes | ⚠️ Multiple processes |
 | **Authentication** | ✅ N/A | ✅ DID-based | ✅ Certificate-based |
 | **Encryption** | ✅ DIDComm only | ✅ DIDComm E2E | ⚠️ TLS + DIDComm |
 | **DID Ownership** | ✅ Agent owns | ✅ Agent owns | ✅ Agent owns |
 | **Standard MCP** | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Decentralized** | ✅ Yes (if desired) | ✅ Yes | ❌ No |
-| **Firewall Friendly** | ✅ N/A | ✅ Via mediator | ⚠️ Requires ports |
-| **Performance** | ✅ <1ms | ⚠️ 200-400ms | ⚠️ 50-200ms |
-| **Deployment** | ✅ 1 process | ⚠️ 2 processes | ⚠️ 2+ processes |
+| **Decentralized** | ✅ Yes (if desired) | ✅ Yes | ⚠️ Partial (backend only) |
+| **Firewall Friendly** | ✅ Via mediators | ✅ Via mediators | ⚠️ Requires ports (local) |
+| **Mediator Usage** | ✅ Backend only | ✅ All DIDComm | ✅ Backend only |
+| **Performance** | ✅ <1ms (local) | ⚠️ 200-400ms | ⚠️ 50-200ms |
+| **Deployment** | ✅ 1 process + mediator | ⚠️ 2 processes + mediator | ⚠️ 2+ processes + mediator |
 | **Ops Complexity** | ✅ Low | ⚠️ Medium | ⚠️ High (certs) |
 | **Implementation** | ⚠️ Complex | ⚠️ Medium | ✅ Familiar |
 
@@ -57,27 +58,33 @@ Quick comparison of all three security hardening options for the MCP architectur
 ```
 ┌─────────────────────────────┐
 │  Single Process             │
-│  ┌─────────┐  ┌──────────┐ │    DIDComm
-│  │ Agent   │→ │   MCP    │─┼────────────→ Password Service
-│  │         │  │  Server  │ │   encrypted
-│  └─────────┘  └──────────┘ │
+│  ┌─────────┐  ┌──────────┐  │    DIDComm ┌──────────┐   DIDComm ┌────────────┐
+│  │ Agent   │→ │   MCP    │─ ┼───────────>│ Mediator │──────────>│  Password  │
+│  │         │  │  Server  │  │  encrypted │ (Cloud)  │  encrypted│  Service   │
+│  └─────────┘  └──────────┘  │            └──────────┘           └────────────┘
 └─────────────────────────────┘
+
+Note: MCP in-process, DIDComm via mediator to backend
 ```
 
 ### Option 2: MCP/DIDComm
 ```
-┌─────────┐  stdio  ┌──────────┐  DIDComm  ┌──────────┐  DIDComm  ┌─────────┐
-│ Agent   │────────→│   MCP    │──────────→│  Tool    │──────────→│ Password│
-│         │JSON-RPC │  Client  │ encrypted │  Server  │ encrypted │ Service │
-└─────────┘         └──────────┘           └──────────┘           └─────────┘
+┌─────────┐  stdio  ┌──────────┐  DIDComm  ┌──────────┐  DIDComm  ┌──────────┐  DIDComm  ┌─────────┐
+│ Agent   │────────→│   MCP    │──────────→│ Mediator │──────────→│ Mediator │──────────→│ Password│
+│         │JSON-RPC │  Client  │ encrypted │    1     │  Routes   │    2     │ encrypted │ Service │
+└─────────┘         └──────────┘           └──────────┘  E2E enc  └──────────┘           └─────────┘
+
+Note: MCP Client and Service each register with mediator(s), can be same or different
 ```
 
 ### Option 3: HTTPS + mTLS
 ```
-┌─────────┐  stdio  ┌──────────┐ HTTPS+mTLS ┌──────────┐  DIDComm  ┌─────────┐
-│ Agent   │────────→│   MCP    │───────────→│  Bridge  │──────────→│ Password│
-│         │JSON-RPC │  Server  │   TLS      │  (relay) │ encrypted │ Service │
-└─────────┘         └──────────┘            └──────────┘           └─────────┘
+┌─────────┐  stdio  ┌──────────┐ HTTPS+mTLS ┌──────────┐  DIDComm  ┌──────────┐  DIDComm  ┌─────────┐
+│ Agent   │────────→│   MCP    │───────────→│  Bridge  │──────────→│ Mediator │──────────→│ Password│
+│         │JSON-RPC │  Server  │   TLS      │  (relay) │ encrypted │ (Cloud)  │ encrypted │ Service │
+└─────────┘         └──────────┘            └──────────┘           └──────────┘           └─────────┘
+
+Note: TLS for local (MCP ↔ Bridge), DIDComm via mediator for backend (Bridge ↔ Service)
 ```
 
 ---
@@ -86,21 +93,21 @@ Quick comparison of all three security hardening options for the MCP architectur
 
 ### Option 1: In-Process
 - **Development**: ⚠️ High (agent code changes)
-- **Operations**: ✅ Low (one process)
+- **Operations**: ✅ Low (one process + mediator)
 - **Maintenance**: ✅ Low (simple)
-- **Infrastructure**: ✅ Minimal
+- **Infrastructure**: ⚠️ Mediator for backend
 
 ### Option 2: MCP/DIDComm
 - **Development**: ⚠️ Medium (new transport)
-- **Operations**: ⚠️ Medium (mediator + tool server)
-- **Maintenance**: ⚠️ Medium (two services)
-- **Infrastructure**: ⚠️ Mediator required
+- **Operations**: ⚠️ Medium (2 processes + mediators)
+- **Maintenance**: ⚠️ Medium (multiple services)
+- **Infrastructure**: ⚠️ Mediator(s) required
 
 ### Option 3: HTTPS + mTLS
 - **Development**: ✅ Low (familiar tech)
-- **Operations**: ⚠️ High (certificates)
+- **Operations**: ⚠️ High (certs + mediator)
 - **Maintenance**: ⚠️ High (cert rotation)
-- **Infrastructure**: ⚠️ Certificate infrastructure
+- **Infrastructure**: ⚠️ Certificate + Mediator
 
 ---
 
@@ -137,11 +144,12 @@ Quick comparison of all three security hardening options for the MCP architectur
 
 | Metric | Option 1 | Option 2 | Option 3 |
 |--------|----------|----------|----------|
-| **Latency** | <1ms | 200-400ms | 50-200ms |
+| **Latency** | <1ms (local) | 200-400ms (via mediators) | 50-200ms (TLS local) |
 | **Throughput** | Very High | Medium | High |
 | **CPU Usage** | Low | Medium | Medium |
 | **Memory** | Low | Medium | Medium |
-| **Network** | None | DIDComm only | HTTPS local |
+| **Network** | DIDComm (backend only) | DIDComm (all) | HTTPS (local) + DIDComm (backend) |
+| **Mediator Hops** | 1 (backend) | 2 (full path) | 1 (backend) |
 
 ---
 

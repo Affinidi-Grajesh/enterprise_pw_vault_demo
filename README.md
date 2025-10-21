@@ -6,7 +6,7 @@ A production-ready password vault with **bifurcated MCP architecture** - separat
 
 | I Want To... | Use This | Command |
 |--------------|----------|---------|
-| **Store/retrieve passwords** | Client | `cargo run --bin client -- -s <DID> get-password --key myapp` |
+| **Retrieve passwords** | Client | `cargo run --bin client -- -s <DID> --password-key myapp` |
 | **Integrate with AI agents** | MCP Server + Bridge | See [Quick Start](#quick-start) |
 | **Test the architecture** | Test Client | `cargo run --bin bridge-test-client -- list-tools` |
 
@@ -74,6 +74,8 @@ cargo run --bin service
 ```
 **→ Copy the Service DID** (e.g., `did:peer:2.Ez6LSghw...`)
 
+**Note:** On first run, the setup wizard will help you configure passwords in `config.json`. These passwords are pre-configured and cannot be changed via the API.
+
 ---
 
 #### Step 2: Start DIDComm Bridge
@@ -87,12 +89,7 @@ cargo run --bin didcomm-bridge -- --service-did "did:peer:2.Ez6LSghw..."
 
 #### Step 3: Test It!
 ```bash
-# Terminal 3 - Store a password
-cargo run --bin client -- \
-  -s "did:peer:2.Ez6LSghw..." \
-  store-password --key myapp --password secret123
-
-# Test via MCP
+# Terminal 3 - Test via MCP (passwords are pre-configured in config.json)
 cargo run --bin bridge-test-client -- \
   --bridge-url http://127.0.0.1:8080 \
   get-password --key myapp
@@ -134,9 +131,8 @@ npx @modelcontextprotocol/inspector \
 cargo run --bin service                              # Password vault
 cargo run --bin didcomm-bridge -- --service-did <DID> # Bridge
 
-# Password management
-cargo run --bin client -- -s <DID> store-password --key <KEY> --password <PASS>
-cargo run --bin client -- -s <DID> get-password --key <KEY>
+# Password retrieval (passwords must be in config.json)
+cargo run --bin client -- -s <DID> --password-key <KEY>
 
 # Testing
 cargo run --bin bridge-test-client -- list-tools

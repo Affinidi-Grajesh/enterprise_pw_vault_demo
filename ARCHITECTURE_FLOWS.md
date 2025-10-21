@@ -2,7 +2,7 @@
 
 This document provides a comprehensive overview of how each component in the Enterprise Password Vault system works and communicates.
 
----
+
 
 ## 📊 System Overview
 
@@ -57,7 +57,7 @@ The system consists of **5 binaries** organized into 3 architectural layers:
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
----
+
 
 ## 🔄 Data Flow Patterns
 
@@ -81,7 +81,7 @@ Properties:
   ✅ Fastest for CLI use
 ```
 
----
+
 
 ### Flow 2: AI Agent Integration (Production)
 **Use Case:** Claude Desktop, MCP Inspector, custom AI agents
@@ -114,7 +114,7 @@ Properties:
   ✅ Scalable (multiple agents → one bridge)
 ```
 
----
+
 
 ### Flow 3: Testing & Validation
 **Use Case:** Verify the complete MCP architecture works
@@ -140,7 +140,7 @@ Properties:
   ✅ Good for debugging
 ```
 
----
+
 
 ## 🎯 Component Details
 
@@ -157,8 +157,9 @@ Properties:
 **Properties:**
 - ✅ Persistent DID (saved on first run)
 - ✅ DIDComm-only access (no HTTP)
-- ✅ Stores passwords in memory
-- ✅ Supports: GetPassword, ListKeys, StorePassword
+- ✅ Passwords pre-configured in `config.json`
+- ✅ Supports: **GetPassword**, **ListKeys** only
+- ❌ Does NOT support storing passwords dynamically
 
 **Command:**
 ```bash
@@ -166,7 +167,23 @@ cargo run --bin service
 # Output: Service DID (copy this!)
 ```
 
----
+**Configuration (`config.json`):**
+```json
+{
+  "mediator_did": "did:web:mediator-nlb.storm.ws:mediator:v1:.well-known",
+  "our_did": "did:peer:2.Ez6LS...",
+  "did_secrets": [...],
+  "passwords": {
+    "myapp": "secret123",
+    "database": "db_password",
+    "api_key": "1234567890"
+  }
+}
+```
+
+**Note:** Passwords must be added to `config.json` before starting the service. The service will create this file on first run via setup wizard.
+
+
 
 ### 2️⃣ CLI Client (`client`)
 **Binary:** `client`
@@ -186,22 +203,18 @@ cargo run --bin service
 
 **Commands:**
 ```bash
-# Get password
-cargo run --bin client -- -s <SERVICE_DID> get-password --key myapp
-
-# Store password
-cargo run --bin client -- -s <SERVICE_DID> store-password --key myapp --password secret123
-
-# List keys
-cargo run --bin client -- -s <SERVICE_DID> list-keys
+# Get password (passwords must be pre-configured in config.json)
+cargo run --bin client -- -s <SERVICE_DID> --password-key myapp
 ```
+
+**Note:** The client only retrieves passwords. Passwords must be added to `config.json` before starting the service.
 
 **Does NOT:**
 - ❌ Spawn MCP server
 - ❌ Use bridge
 - ❌ Use HTTP
 
----
+
 
 ### 3️⃣ DIDComm Bridge (`didcomm-bridge`)
 **Binary:** `didcomm-bridge`
@@ -250,7 +263,7 @@ curl http://127.0.0.1:8080/health
 }
 ```
 
----
+
 
 ### 4️⃣ MCP Server (`mcp-server`)
 **Binary:** `mcp-server`
@@ -294,7 +307,7 @@ cargo run --bin mcp-server -- --bridge-url http://127.0.0.1:9090
 7. Server → Client: tools/call response
 ```
 
----
+
 
 ### 5️⃣ Bridge Test Client (`bridge-test-client`)
 **Binary:** `bridge-test-client`
@@ -328,14 +341,14 @@ cargo run --bin bridge-test-client -- list-keys
 cargo run --bin bridge-test-client -- --bridge-url http://127.0.0.1:9090 list-tools
 ```
 
----
+
 
 ## 🔐 Security Model
 
 ### DID Management
 
 | Component | DID Type | Persistence | Purpose |
-|-----------|----------|-------------|---------|
+|--|-|-||
 | Password Service | Persistent | Saved to `config.json` | Stable service identity |
 | DIDComm Bridge | Persistent | Saved to `bridge_config.json` | Trusted bridge identity |
 | CLI Client | Ephemeral | Generated per run | Temporary access |
@@ -358,7 +371,7 @@ AI Agent (configured with MCP server)
 - MCP server trusts bridge URL
 - All DIDComm messages are encrypted end-to-end
 
----
+
 
 ## 🚀 Complete Setup Guide
 
@@ -373,17 +386,12 @@ cargo run --bin service
 cargo run --bin didcomm-bridge -- --service-did "did:peer:2.Ez6LS..."
 # → Bridge starts on http://127.0.0.1:8080
 
-# Terminal 3: Store a password
-cargo run --bin client -- \
-  -s "did:peer:2.Ez6LS..." \
-  store-password --key myapp --password secret123
-
-# Terminal 4: Test via MCP
+# Terminal 3: Test via MCP (passwords must be pre-configured in config.json)
 cargo run --bin bridge-test-client -- get-password --key myapp
 # → Should output: Password for 'myapp': secret123
 ```
 
----
+
 
 ### Production Setup (AI Agent)
 
@@ -409,14 +417,13 @@ cargo build --release
 # → Ask Claude: "What tools do you have for password management?"
 ```
 
----
 
 ## 📊 Comparison Matrix
 
 ### When to Use Each Binary
 
 | Use Case | Binary | Reason |
-|----------|--------|--------|
+|-|--|--|
 | Quick password management | `client` | Simplest, direct access |
 | AI agent integration | `mcp-server` + `didcomm-bridge` | Standard MCP protocol |
 | Testing MCP flow | `bridge-test-client` | Full integration test |
@@ -447,7 +454,7 @@ mcp-server (needs bridge URL)
 AI Agent (needs mcp-server config)
 ```
 
----
+
 
 ## 🔍 Troubleshooting Flow Diagram
 
@@ -469,18 +476,6 @@ Problem: Can't get password
     └─ Enable verbose logging:
         RUST_LOG=debug cargo run --bin <component>
 ```
-
----
-
-## 📚 Related Documentation
-
-- [README.md](README.md) - Quick start and overview
-- [BIFURCATED_ARCHITECTURE.md](BIFURCATED_ARCHITECTURE.md) - Deep technical details
-- [BIFURCATED_QUICK_START.md](BIFURCATED_QUICK_START.md) - Fast setup
-- [MCP_OPTIONS_GUIDE.md](MCP_OPTIONS_GUIDE.md) - Architecture comparisons
-- [TROUBLESHOOTING_MCP.md](TROUBLESHOOTING_MCP.md) - Common issues
-
----
 
 ## 🎓 Key Takeaways
 

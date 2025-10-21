@@ -42,7 +42,6 @@ use uuid::Uuid;
 enum BridgeRequest {
     GetPassword { key: String },
     ListKeys,
-    StorePassword { key: String, password: String },
 }
 
 /// Bridge response to MCP server
@@ -292,9 +291,6 @@ impl BridgeState {
             }
             BridgeRequest::ListKeys => BridgeResponse::Success {
                 data: "Available password keys are managed by the DIDComm password service.".to_string(),
-            },
-            BridgeRequest::StorePassword { key: _, password: _ } => BridgeResponse::Error {
-                error: "Store password not yet implemented in bridge".to_string(),
             },
         }
     }
